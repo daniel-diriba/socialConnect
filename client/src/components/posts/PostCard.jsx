@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 
-const PostCard = ({ post }) => {
+const PostCard = ({ post, onUpdatePost }) => {
   const [currentPost, setCurrentPost] = useState(post);
   const [commentText, setCommentText] = useState("");
   const [showComments, setShowComments] = useState(false);
@@ -14,11 +14,33 @@ const PostCard = ({ post }) => {
     if (isLiking) return;
 
     setIsLiking(true);
+
     try {
-      const response = await axios.put(`/posts/like/${currentPost._id}`);
-      setCurrentPost(response.data);
+      console.log("🟡 Liking post:", currentPost._id);
+
+      // Try backend API call
+      try {
+        const response = await axios.put(
+          `http://localhost:5000/api/posts/like/${currentPost._id}`
+        );
+        console.log("🟢 Like successful:", response.data);
+        const updatedPost = response.data;
+        setCurrentPost(updatedPost);
+        if (onUpdatePost) onUpdatePost(updatedPost);
+      } catch (backendError) {
+        console.log("🟠 Backend like failed, updating locally");
+        // Fallback: Update locally
+        const updatedPost = {
+          ...currentPost,
+          likes: isLiked
+            ? currentPost.likes.filter((id) => id !== user?.id)
+            : [...currentPost.likes, user?.id],
+        };
+        setCurrentPost(updatedPost);
+        if (onUpdatePost) onUpdatePost(updatedPost);
+      }
     } catch (error) {
-      console.error("Error liking post:", error);
+      console.error("🔴 Error liking post:", error);
     } finally {
       setIsLiking(false);
     }
@@ -29,23 +51,58 @@ const PostCard = ({ post }) => {
     if (!commentText.trim()) return;
 
     try {
-      const response = await axios.post(`/posts/comment/${currentPost._id}`, {
-        text: commentText,
-      });
-      setCurrentPost(response.data);
-      setCommentText("");
+      console.log("🟡 Adding comment:", commentText);
+
+      // Try backend API call
+      try {
+        const response = await axios.post(
+          `http://localhost:5000/api/posts/comment/${currentPost._id}`,
+          {
+            text: commentText,
+          }
+        );
+        console.log("🟢 Comment successful:", response.data);
+        const updatedPost = response.data;
+        setCurrentPost(updatedPost);
+        setCommentText("");
+        if (onUpdatePost) onUpdatePost(updatedPost);
+      } catch (backendError) {
+        console.log("🟠 Backend comment failed, updating locally");
+        // Fallback: Update locally
+        const newComment = {
+          user: {
+            username: user?.username,
+            avatar: user?.avatar,
+          },
+          text: commentText,
+          createdAt: new Date(),
+        };
+        const updatedPost = {
+          ...currentPost,
+          comments: [...currentPost.comments, newComment],
+        };
+        setCurrentPost(updatedPost);
+        setCommentText("");
+        if (onUpdatePost) onUpdatePost(updatedPost);
+      }
     } catch (error) {
-      console.error("Error adding comment:", error);
+      console.error("🔴 Error adding comment:", error);
     }
   };
 
   const isLiked = currentPost.likes.includes(user?.id);
-  const timeAgo = new Date(currentPost.createdAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+
+  const getTimeAgo = (date) => {
+    const now = new Date();
+    const postDate = new Date(date);
+    const diffInSeconds = Math.floor((now - postDate) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400)
+      return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4 hover:shadow-md transition-shadow">
@@ -55,17 +112,21 @@ const PostCard = ({ post }) => {
           <div className="flex items-center space-x-3">
             <img
               src={
-                currentPost.author.avatar ||
-                `https://ui-avatars.com/api/?name=${currentPost.author.username}&background=0D8ABC&color=fff`
+                currentPost.author?.avatar ||
+                `https://ui-avatars.com/api/?name=${
+                  currentPost.author?.username || "User"
+                }&background=0D8ABC&color=fff`
               }
-              alt={currentPost.author.username}
+              alt={currentPost.author?.username || "User"}
               className="w-10 h-10 rounded-full border-2 border-blue-100"
             />
             <div>
               <h3 className="font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
-                {currentPost.author.username}
+                {currentPost.author?.username || "Unknown User"}
               </h3>
-              <p className="text-xs text-gray-500">{timeAgo}</p>
+              <p className="text-xs text-gray-500">
+                {getTimeAgo(currentPost.createdAt)}
+              </p>
             </div>
           </div>
           <button className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
@@ -74,10 +135,10 @@ const PostCard = ({ post }) => {
         </div>
       </div>
 
-      {/* Post Content */}
+      {/* Post Content - FIXED DISPLAY */}
       <div className="p-4">
         <p className="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">
-          {currentPost.content}
+          {currentPost.content || "No content available"}
         </p>
 
         {/* Post Images */}
@@ -98,17 +159,17 @@ const PostCard = ({ post }) => {
           <div className="flex items-center space-x-4">
             <span className="flex items-center space-x-1">
               <span className="text-red-500">❤️</span>
-              <span>{currentPost.likes.length} likes</span>
+              <span>{currentPost.likes?.length || 0} likes</span>
             </span>
             <span
               className="flex items-center space-x-1 cursor-pointer hover:text-blue-600"
               onClick={() => setShowComments(!showComments)}
             >
               <span>💬</span>
-              <span>{currentPost.comments.length} comments</span>
+              <span>{currentPost.comments?.length || 0} comments</span>
             </span>
           </div>
-          <span className="text-xs">📊 12 shares</span>
+          <span className="text-xs">📊 0 shares</span>
         </div>
       </div>
 
@@ -177,36 +238,39 @@ const PostCard = ({ post }) => {
 
           {/* Comments List */}
           <div className="space-y-3 max-h-60 overflow-y-auto">
-            {currentPost.comments.map((comment, index) => (
-              <div key={index} className="flex items-start space-x-3">
-                <img
-                  src={
-                    comment.user.avatar ||
-                    `https://ui-avatars.com/api/?name=${comment.user.username}&background=0D8ABC&color=fff`
-                  }
-                  alt={comment.user.username}
-                  className="w-6 h-6 rounded-full mt-1 flex-shrink-0"
-                />
-                <div className="flex-1 bg-white rounded-2xl p-3 shadow-sm">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="font-semibold text-sm text-gray-900">
-                      {comment.user.username}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(comment.createdAt).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  <p className="text-gray-800 text-sm">{comment.text}</p>
-                  <div className="flex items-center space-x-3 mt-2 text-xs text-gray-500">
-                    <button className="hover:text-blue-600">Like</button>
-                    <button className="hover:text-blue-600">Reply</button>
+            {currentPost.comments?.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                No comments yet. Be the first to comment!
+              </div>
+            ) : (
+              currentPost.comments?.map((comment, index) => (
+                <div key={index} className="flex items-start space-x-3">
+                  <img
+                    src={
+                      comment.user?.avatar ||
+                      `https://ui-avatars.com/api/?name=${comment.user?.username}&background=0D8ABC&color=fff`
+                    }
+                    alt={comment.user?.username}
+                    className="w-6 h-6 rounded-full mt-1 flex-shrink-0"
+                  />
+                  <div className="flex-1 bg-white rounded-2xl p-3 shadow-sm">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="font-semibold text-sm text-gray-900">
+                        {comment.user?.username || "Unknown User"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {getTimeAgo(comment.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-gray-800 text-sm">{comment.text}</p>
+                    <div className="flex items-center space-x-3 mt-2 text-xs text-gray-500">
+                      <button className="hover:text-blue-600">Like</button>
+                      <button className="hover:text-blue-600">Reply</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}

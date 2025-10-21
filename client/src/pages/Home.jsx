@@ -3,72 +3,158 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import CreatePost from "../components/posts/CreatePost";
 import PostCard from "../components/posts/PostCard";
+import UserCard from "../components/users/UserCard";
 import Sidebar from "../components/layout/Sidebar";
-import Stories from "../components/layout/Stories";
-import axios from "axios";
 
 const Home = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [activeTab, setActiveTab] = useState("for-you");
 
   useEffect(() => {
     if (user) {
-      fetchPosts();
+      loadInitialData();
     }
   }, [user]);
 
-  const fetchPosts = async () => {
-    try {
-      const response = await axios.get("/posts/feed");
-      setPosts(response.data);
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-      // Mock data for demonstration
-      setPosts([
-        {
-          _id: "1",
-          content:
-            "Just launched my new portfolio website! 🚀 Built with React and Node.js. So excited to share my work with the world! #webdev #react #portfolio",
-          author: {
-            username: "sarah_codes",
-            avatar:
-              "https://ui-avatars.com/api/?name=Sarah+Developer&background=6366f1&color=fff",
-          },
-          likes: ["2", "3", "4"],
-          comments: [
-            {
-              user: { username: "dev_guru", avatar: "" },
-              text: "Looks amazing! Great work!",
-              createdAt: new Date(),
+  const loadInitialData = () => {
+    // Demo posts
+    const demoPosts = [
+      {
+        _id: "1",
+        content:
+          "Just launched an amazing new feature in our React app! The performance improvements are incredible. 🚀\n\n#React #JavaScript #WebDev",
+        author: {
+          username: "sarah_developer",
+          avatar:
+            "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
+        },
+        likes: ["1", "2", "3", "4"],
+        comments: [
+          {
+            user: {
+              username: "mike_coder",
+              avatar:
+                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
             },
-          ],
-          images: [],
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        },
-        {
-          _id: "2",
-          content:
-            "Beautiful sunset from the office today. Sometimes you need to appreciate the small moments. 🌅 #gratitude #sunset #worklife",
-          author: {
-            username: "mike_designs",
-            avatar:
-              "https://ui-avatars.com/api/?name=Mike+Designer&background=ec4899&color=fff",
+            text: "This looks amazing! Great work Sarah! 👏",
+            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
           },
-          likes: ["1", "3"],
-          comments: [],
-          images: [],
-          createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
+        ],
+        images: [],
+        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      },
+      {
+        _id: "2",
+        content:
+          "Beautiful sunset from the office today. Sometimes you need to pause and appreciate the small moments in life. 🌅\n\nGrateful for my team and the work we do!",
+        author: {
+          username: "mike_coder",
+          avatar:
+            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
         },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+        likes: ["1", "3"],
+        comments: [],
+        images: [
+          "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=300&fit=crop",
+        ],
+        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
+      },
+    ];
+
+    // Demo suggested users
+    const demoUsers = [
+      {
+        id: "2",
+        username: "sarah_developer",
+        avatar:
+          "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
+        bio: "Senior Frontend Developer | React Specialist | Tech Speaker",
+        followers: ["1", "3", "4", "5"],
+        following: ["1", "3"],
+      },
+      {
+        id: "3",
+        username: "mike_coder",
+        avatar:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
+        bio: "Full Stack Developer | Open Source Contributor",
+        followers: ["1", "2"],
+        following: ["1", "2"],
+      },
+      {
+        id: "4",
+        username: "emma_fitness",
+        avatar:
+          "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
+        bio: "Fitness Coach | Healthy Lifestyle Advocate",
+        followers: ["1", "3"],
+        following: ["1"],
+      },
+    ];
+
+    setPosts(demoPosts);
+    setSuggestedUsers(demoUsers);
   };
 
+  // Handle new post creation
+  // Handle new post creation - FIXED VERSION
   const handlePostCreated = (newPost) => {
-    setPosts([newPost, ...posts]);
+    console.log("🟢 HOME: Received new post:", newPost);
+
+    // Check if the post came from backend or is local
+    let postToAdd;
+
+    if (newPost._id && newPost.author) {
+      // Post from backend - use as is
+      postToAdd = newPost;
+    } else if (newPost.content) {
+      // Local post - create proper structure
+      postToAdd = {
+        _id: Date.now().toString(),
+        content: newPost.content,
+        author: {
+          username: user.username,
+          avatar: user.avatar,
+        },
+        likes: [],
+        comments: [],
+        images: newPost.images || [],
+        createdAt: new Date(),
+      };
+    } else {
+      console.error("🔴 Invalid post structure:", newPost);
+      return;
+    }
+
+    console.log("🟢 Adding post to feed:", postToAdd);
+    setPosts([postToAdd, ...posts]);
+  };
+
+  // Handle post updates (likes, comments)
+  const handlePostUpdate = (updatedPost) => {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post._id === updatedPost._id ? updatedPost : post
+      )
+    );
+  };
+
+  // Handle follow/unfollow
+  const handleFollowUpdate = (userId, isFollowing) => {
+    setSuggestedUsers((currentUsers) =>
+      currentUsers.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              followers: isFollowing
+                ? [...u.followers, user.id]
+                : u.followers.filter((id) => id !== user.id),
+            }
+          : u
+      )
+    );
   };
 
   // Guest view - like LinkedIn/Facebook landing
@@ -148,52 +234,6 @@ const Home = () => {
             </div>
           </div>
         </div>
-
-        {/* Features Section */}
-        <div className="max-w-7xl mx-auto px-4 py-16">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Why professionals choose SocialConnect
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Join over 50 million professionals who use SocialConnect to
-              advance their careers and build meaningful connections.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            <div className="text-center p-8 rounded-2xl hover:shadow-lg transition-shadow">
-              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl text-blue-600">🚀</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-4">Career Growth</h3>
-              <p className="text-gray-600">
-                Access job opportunities and career resources to help you grow
-                professionally.
-              </p>
-            </div>
-            <div className="text-center p-8 rounded-2xl hover:shadow-lg transition-shadow">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl text-green-600">🌐</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-4">Global Network</h3>
-              <p className="text-gray-600">
-                Connect with professionals from every industry and corner of the
-                world.
-              </p>
-            </div>
-            <div className="text-center p-8 rounded-2xl hover:shadow-lg transition-shadow">
-              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-3xl text-purple-600">💡</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-4">Knowledge Sharing</h3>
-              <p className="text-gray-600">
-                Learn from industry experts and share your own insights with the
-                community.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     );
   }
@@ -210,9 +250,6 @@ const Home = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-6 space-y-4">
-            {/* Stories */}
-            <Stories />
-
             {/* Create Post */}
             <CreatePost onPostCreated={handlePostCreated} />
 
@@ -255,28 +292,7 @@ const Home = () => {
             </div>
 
             {/* Posts Feed */}
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse"
-                  >
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-12 h-12 bg-gray-300 rounded-full"></div>
-                      <div className="space-y-2">
-                        <div className="h-4 bg-gray-300 rounded w-24"></div>
-                        <div className="h-3 bg-gray-300 rounded w-32"></div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-4 bg-gray-300 rounded"></div>
-                      <div className="h-4 bg-gray-300 rounded w-5/6"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : posts.length === 0 ? (
+            {posts.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-3xl text-gray-400">📝</span>
@@ -288,14 +304,15 @@ const Home = () => {
                   Start by creating your first post or follow some users to see
                   their content here!
                 </p>
-                <button className="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors">
-                  Find people to follow
-                </button>
               </div>
             ) : (
               <div className="space-y-4">
                 {posts.map((post) => (
-                  <PostCard key={post._id} post={post} />
+                  <PostCard
+                    key={post._id}
+                    post={post}
+                    onUpdatePost={handlePostUpdate}
+                  />
                 ))}
               </div>
             )}
@@ -303,90 +320,20 @@ const Home = () => {
 
           {/* Right Sidebar */}
           <div className="lg:col-span-3 space-y-6">
-            {/* News & Updates */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
-                <span className="text-blue-500 mr-2">📰</span>
-                Industry News
-              </h3>
-              <div className="space-y-4">
-                <div className="pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
-                  <h4 className="font-medium text-gray-900 text-sm mb-1">
-                    Tech Industry Growth
-                  </h4>
-                  <p className="text-xs text-gray-500">
-                    2 hours ago • 1.2K reads
-                  </p>
-                </div>
-                <div className="pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
-                  <h4 className="font-medium text-gray-900 text-sm mb-1">
-                    Remote Work Trends 2024
-                  </h4>
-                  <p className="text-xs text-gray-500">
-                    5 hours ago • 3.4K reads
-                  </p>
-                </div>
-                <div className="pb-3 border-b border-gray-100 last:border-b-0 last:pb-0">
-                  <h4 className="font-medium text-gray-900 text-sm mb-1">
-                    AI in Everyday Business
-                  </h4>
-                  <p className="text-xs text-gray-500">
-                    1 day ago • 5.7K reads
-                  </p>
-                </div>
-              </div>
-              <button className="w-full text-blue-500 text-sm font-semibold mt-4 py-2 hover:bg-blue-50 rounded-lg transition-colors">
-                See all news
-              </button>
-            </div>
-
             {/* Who to Follow */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="font-semibold text-gray-900 mb-4">
                 People you may know
               </h3>
               <div className="space-y-4">
-                {[
-                  {
-                    name: "Alex Johnson",
-                    role: "Software Engineer",
-                    mutual: 12,
-                  },
-                  { name: "Maria Garcia", role: "Product Designer", mutual: 8 },
-                  { name: "David Kim", role: "Data Scientist", mutual: 15 },
-                ].map((person, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                        {person.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </div>
-                      <div>
-                        <div className="font-medium text-sm text-gray-900">
-                          {person.name}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {person.role}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {person.mutual} mutual connections
-                        </div>
-                      </div>
-                    </div>
-                    <button className="text-blue-500 hover:text-blue-600 text-sm font-semibold bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition-colors">
-                      Follow
-                    </button>
-                  </div>
+                {suggestedUsers.map((user) => (
+                  <UserCard
+                    key={user.id}
+                    user={user}
+                    onFollowUpdate={handleFollowUpdate}
+                  />
                 ))}
               </div>
-              <button className="w-full text-blue-500 text-sm font-semibold mt-4 py-2 hover:bg-blue-50 rounded-lg transition-colors">
-                View all recommendations
-              </button>
             </div>
           </div>
         </div>

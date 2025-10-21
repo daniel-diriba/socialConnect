@@ -1,4 +1,6 @@
 import React from "react";
+import axios from "axios";
+axios.defaults.baseURL = "http://localhost:5000";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/layout/Navbar";
